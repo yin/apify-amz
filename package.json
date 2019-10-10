@@ -1,0 +1,14 @@
+{
+  "name": "apify-amz",
+  "version": "1.0.0",
+  "description": "Apify example",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "apify": "^0.16.0"
+  }
+}
