@@ -61,15 +61,13 @@ Apify.main(async () => {
         };
     };
 
-    // Passing `productDescription` explicitly makes this method coupled to the result of method `handleRequestForExtractDescription()`. I'd pass an object and `Object.assign()` it with the payload, but there is little point for an excercise.
-    const makeRequestForExtractOffers = (productDescription, payload) => {
+    const makeRequestForExtractOffers = (descriptionAndShipping, payload) => {
         const asin = payload.asin;
-        payload.productDescription = productDescription;
         return {
             url: `https://www.amazon.com/gp/offer-listing/${asin}`,
             userData: {
                 label: amzExtractOffersLabel,
-                payload: payload
+                payload: Object.assign(payload, descriptionAndShipping)
             }
         };
     };
@@ -87,8 +85,11 @@ Apify.main(async () => {
 
     const handleRequestForExtractDescription =
         async ({request: {userData: {payload}}, page}) => {
-            // Product description requires some additional processing here. We should have define what is expected, e.g. keep text, discard formatting.
-            return await page.$$eval('div#productDescription', el => el[0] && el[0].innerHTML || null);
+            return {
+                // Product description requires some additional processing here. We should have define what is expected, e.g. keep text, discard formatting.
+                productDescription: await page.$$eval('#productDescription', el => el[0] && el[0].innerHTML || null),
+                shipping: await page.$$eval('#ourprice_shippingmessage', el => el[0] && el[0].innerText || null),
+            }
         };
 
     const handleRequestForExtractOffers =
@@ -98,7 +99,6 @@ Apify.main(async () => {
                     ({
                         seller: offer.querySelector('.olpSellerName').innerText,
                         price: offer.querySelector('.olpOfferPrice').innerText,
-                        shipping: offer.querySelector('.olpShippingInfo').innerText || 'free',
                     })
                 );
             const offers = await page.$$eval('#olpOfferList .olpOffer', pageFunction);
@@ -109,6 +109,7 @@ Apify.main(async () => {
                     title: payload.title,
                     itemUrl: payload.itemUrl,
                     keyword: payload.keyword,
+                    shipping: payload.shipping,
                 }, offer)
             );
         };
@@ -151,9 +152,9 @@ Apify.main(async () => {
 
                         break;
                     case amzExtractDescriptionLabel:
-                        const productDescription = await handleRequestForExtractDescription({request, page});
+                        const descriptionAndShipping = await handleRequestForExtractDescription({request, page});
                         requestQueue.addRequest(
-                            makeRequestForExtractOffers(productDescription, request.userData.payload)
+                            makeRequestForExtractOffers(descriptionAndShipping, request.userData.payload)
                         );
                         break;
                     case amzExtractOffersLabel:
