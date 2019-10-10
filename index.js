@@ -27,7 +27,7 @@ const amzExtractOffersLabel = 'amz-extract-offers';
 //
 Apify.main(async () => {
     // Call this point our "`(start)`" state.
-    const input = Apify.getInput();
+    const input = await Apify.getInput();
     const {keyword} = input;
 
     if (!keyword || typeof keyword !== 'string' || keyword.length === 0) {
