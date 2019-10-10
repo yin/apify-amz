@@ -173,6 +173,14 @@ Apify.main(async () => {
         });
 
         await crawler.run();
+
+        const datasetId = Apify.getEnv().defaultDatasetId;
+        await Apify.call('apify/send-mail', {
+            to: 'lukas@apify.com',
+            subject: 'Matej Gagyi',
+            text: "This is for Apify SDK excercise.\n\n"
+                + `https://https://my.apify.com/storage/dataset/${datasetId}`,
+        });
     } finally {
         // This is how Java guys make sure log massages are coherent.
         console.log('Crawler finished.');
