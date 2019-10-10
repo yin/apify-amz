@@ -130,6 +130,7 @@ Apify.main(async () => {
             requestQueue,
             launchPuppeteerOptions: {},
             maxRequestsPerCrawl: 256,
+            handlePageTimeoutSecs: 300,
             handlePageFunction: async ({request, page}) => {
                 console.log(`Processing ${request.url}...`);
                 switch (request.userData.label) {
