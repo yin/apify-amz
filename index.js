@@ -87,7 +87,7 @@ Apify.main(async () => {
         async ({request: {userData: {payload}}, page}) => {
             return {
                 // Product description requires some additional processing here. We should have define what is expected, e.g. keep text, discard formatting.
-                productDescription: await page.$$eval('#productDescription', el => el[0] && el[0].innerHTML || null),
+                productDescription: await page.$$eval('#productDescription', el => el[0] && el[0].innerHTML.trim().replace(/\s+/, " ") || null),
                 shipping: await page.$$eval('#ourprice_shippingmessage', el => el[0] && el[0].innerText || null),
             }
         };
