@@ -10,6 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "apify": "^0.16.0"
+    "apify": "^0.16.0",
+    "puppeteer": "^1.18.1"
   }
 }
