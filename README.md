@@ -1,9 +1,4 @@
-# My beautiful actor
+# Apify Excercise
 
-The `README.md` file contains a documentation what your actor does and how to use it,
-which is then displayed in the app or Apify Store. It's always a good
-idea to write a good `README.md`, in a few months not even you
-will remember all the details about the actor.
+This is an excercise for The API. Look at my other projects, if you are interested in my a nice README.md. I.e.: yin/java-flags.
 
-You can use [Markdown](https://www.markdownguide.org/cheat-sheet)
-language for rich formatting.
