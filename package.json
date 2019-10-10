@@ -1,16 +1,15 @@
 {
-  "name": "apify-amz",
-  "version": "1.0.0",
-  "description": "Apify example",
-  "main": "index.js",
-  "scripts": {
-    "start": "node index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "apify": "^0.16.0",
-    "puppeteer": "^1.18.1"
-  }
+	"name": "apify-amz",
+	"version": "0.0.1",
+	"description": "Excercise",
+	"dependencies": {
+		"apify": "^0.16.0"
+	},
+	"devDependencies": {},
+	"scripts": {
+		"start": "node index.js",
+		"test": "echo \"Error: oops, the actor has no tests yet, sad!\" && exit 1"
+	},
+	"author": "yin",
+	"license": "ISC"
 }
