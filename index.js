@@ -27,7 +27,7 @@ const amzExtractOffersLabel = 'amz-extract-offers';
 //
 Apify.main(async () => {
     // Call this point our "`(start)`" state.
-    const input = apify.getInput();
+    const input = Apify.getInput();
     const { keyword } = input;
 
     if (!keyword || typeof keyword !== 'string' || keyword.length === 0) {
@@ -126,19 +126,19 @@ Apify.main(async () => {
                 payload: payload
             }
         };
-    }
+    };
 
     const handleRequestForSearchAmazon =
-        ({ request, page }) => await page.$eval('*[data-asin]', el => {
+        async ({ request, page }) => await page.$eval('*[data-asin]', el => ( {
             asin: el.dataset.asin,
             // There are at least 2 tags <a class="a-link-normal"> lading to product description in a product rendering.
             // Pick the one in the text title. This might be improved.
             title: el.querySelector('h2 a.a-link-normal').innerText,
             url: el.querySelector('h2 a.a-link-normal').href
-        });
+        } ));
 
     const handleRequestForExtractDescription =
-        aync ({ { request: { userData: { payload } }, page }) => {
+        async ({ request: { userData: { payload } }, page }) => {
             return await page.$$eval('div#productDescription', el => el.outerHTML)
         };
 
@@ -164,7 +164,7 @@ Apify.main(async () => {
           );
     }
 
-    const writeOut = (offers) => {
+    const writeOut = async (offers) => {
       for (const offer of offers) {
           await Apify.pushData(offer);
       }
