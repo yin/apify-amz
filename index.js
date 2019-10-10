@@ -112,7 +112,7 @@ Apify.main(async () => {
                 payload: Object.extend(payload, {
                     asin: item.asin,
                     itemUrl: item.url,
-                }
+                })
             }
         };
     }
