@@ -27,17 +27,101 @@ const amzExtractOffersLabel = 'amz-extract-offers';
 //
 Apify.main(async () => {
     // Call this point our "`(start)`" state.
-    const input = Apify.getInput();
+    const input = { keyword: "asus zenbook" }; // Apify.getInput();
     const { keyword } = input;
 
     if (!keyword || typeof keyword !== 'string' || keyword.length === 0) {
       // Comming from Java: I always check my contract and solve conflicts by fast-failure.
       // Exception handling on upper level has to be reliable. With promises before node 10 or 11 some exceptions flew out of the window.
       throw new Error('Scraper input malformed. Well formed request look like: '
-          + '{ keyword: "string" }');
+          + '{ keyword: "string" }' + "\n"
+          + 'While we received: ' + JSON.stringify(input));
     }
 
+    const makeRequestForAmazonSearch = (keyword, payload) => {
+      return {
+        url: `https://www.amazon.com/s?k=${encodeURIComponent(keyword)}`,
+        userData: {
+          label: amzSearchKeywordLabel,
+          payload: Object.assign(payload, { keyword: keyword })
+        }
+      };
+    };
+
+    const makeRequestForExtractDescription = (item, payload = {}) => {
+        const a= {
+            url: item.url,
+            userData: {
+                label: amzExtractDescriptionLabel,
+                payload: Object.assign(payload, {
+                    asin: item.asin,
+                    itemUrl: item.url,
+                })
+            }
+        };
+        console.log(a); return a;
+    };
+
+    // Passing `productDescription` explicitly makes this method coupled to the result of method `handleRequestForExtractDescription()`. I'd pass an object and `Object.assing()` it with the payload, but there is little point for an excercise.
+    const makeRequestForExtractOffers = (productDescription, payload) => {
+        const asin = payload.asin;
+        payload.productDescription = productDescription;
+        return {
+            url: `https://www.amazon.com/gp/offer-listing/${asin}`,
+            userData: {
+                label: amzExtractOffersLabel,
+                payload: payload
+            }
+        };
+    };
+
+    const handleRequestForSearchAmazon =
+        async ({ request, page }) => await page.$$eval('.s-result-list .s-result-item[data-asin]', els => els.map(el =>
+            ( {
+                    asin: el.dataset.asin,
+                    // There are at least 2 tags <a class="a-link-normal"> lading to product description in a product rendering.
+                    // Pick the one in the text title. This might be improved.
+                    title: el.querySelector('h2 .a-link-normal').innerText,
+                    url: el.querySelector('h2 .a-link-normal').href,
+            } )
+        ));
+
+    const handleRequestForExtractDescription =
+        async ({ request: { userData: { payload } }, page }) => {
+            // Product description requires some additional processing here. We should have define what is expected, e.g. keep text, discard formatting.
+            return await page.$$eval('div#productDescription', el => el[0].innerHTML);
+        };
+
+    const handleRequestForExtractOffers =
+        async ({ request: { userData: { payload } }, page }) => {
+          const pageFunction = offers =>
+              offers.map(offer =>
+                  ({
+                      seller: offer.querySelector('.olpSellerName').innerText,
+                      price: offer.querySelector('.olpOfferPrice').innerText,
+                      shipping: offer.querySelector('.olpShippingInfo').innerText || 'free',
+                  })
+              );
+          const offers = await page.$$eval('#olpOfferList .olpOffer', pageFunction);
+
+          return offers.map(offer =>
+              Object.assign({
+                  description: payload.productDescription,
+                  title: payload.title,
+                  itemUrl: payload.itemUrl,
+                  keyword: payload.keyword,
+              }, offer)
+          );
+    };
+
+    const writeOut = async (offers) => {
+      for (const offer of offers) {
+          await Apify.pushData(offer);
+      }
+    };
+
     const requestQueue = await Apify.openRequestQueue();
+    // I have a question, is `await` needed here? May there be a race condition with crawler ignoring the request if it executes late?
     requestQueue.addRequest(
       makeRequestForAmazonSearch(keyword, {})
     );
@@ -51,12 +135,12 @@ Apify.main(async () => {
                 console.log(`Processing ${request.url}...`);
                 switch(request.userData.label) {
                   case amzSearchKeywordLabel:
-                    const items = handleRequestForSearchAmazon({ request, page });
+                    const items = await handleRequestForSearchAmazon({ request, page });
                     // An alternative to the Promise.all approch bellow is this more concise sequential code:
                     //
                     // ```
-                    //   for (const asin of asins)
-                    //     await requestQueue.addRequest({ url: 'https://news.ycombinator.com/' });
+                    //   for (const item of items)
+                    //     await requestQueue.addRequest(...);
                     // ```
                     //
                     await Promise.all(
@@ -67,14 +151,17 @@ Apify.main(async () => {
 
                     break;
                   case amzExtractDescriptionLabel:
-                    const productDescription = handleRequestForExtractDescription({ request, page });
-                    requestQueue.addRequest(
-                        makeRequestForExtractOffers(productDescription, request.userData.payload)
+                    const productDescription = await handleRequestForExtractDescription({ request, page });
+
+                      let request1 = makeRequestForExtractOffers(productDescription, request.userData.payload);
+                      console.log(request1);
+                      requestQueue.addRequest(
+                        request1
                     );
                     break;
                   case amzExtractOffersLabel:
-                    const offers = handleRequestForExtractOffers({ request, page });
-                    writeOut(offers)
+                    const offers = await handleRequestForExtractOffers({ request, page });
+                    await writeOut(offers);
                     break;
                 }
             },
@@ -88,85 +175,9 @@ Apify.main(async () => {
             },
         });
 
-        // Run the crawler and wait for it to finish.
         await crawler.run();
     } finally {
-      console.log('Crawler finished.');
-    }
-
-    const makeRequestForAmazonSearch = (keyword, payload) => {
-      return {
-        url: `https://www.amazon.com/s?k=${keyword}`,
-        userData: {
-          label: amzSearchKeywordLabel,
-          payload: Object.extend(payload, { keyword: keyword })
-        }
-      };
-    }
-
-    const makeRequestForExtractDescription = (item, payload = {}) => {
-        return {
-            url: item.url,
-            userData: {
-                label: amzExtractDescriptionLabel,
-                payload: Object.extend(payload, {
-                    asin: item.asin,
-                    itemUrl: item.url,
-                })
-            }
-        };
-    }
-
-    const makeRequestForExtractOffers = (payload) => {
-        const asin = payload.asin;
-        return {
-            url: `https://www.amazon.com/gp/offer-listing/${asin}`,
-            userData: {
-                label: amzExtractOffersLabel,
-                payload: payload
-            }
-        };
-    };
-
-    const handleRequestForSearchAmazon =
-        async ({ request, page }) => await page.$eval('*[data-asin]', el => ( {
-            asin: el.dataset.asin,
-            // There are at least 2 tags <a class="a-link-normal"> lading to product description in a product rendering.
-            // Pick the one in the text title. This might be improved.
-            title: el.querySelector('h2 a.a-link-normal').innerText,
-            url: el.querySelector('h2 a.a-link-normal').href
-        } ));
-
-    const handleRequestForExtractDescription =
-        async ({ request: { userData: { payload } }, page }) => {
-            return await page.$$eval('div#productDescription', el => el.outerHTML)
-        };
-
-    const handleRequestForExtractOffers =
-        async ({ request: { userData: { payload } }, page }) => {
-          const pageFunction = offers =>
-              offers.map(offer =>
-                  ({
-                      seller: offer.querySelector('.olpSellerName').innerText,
-                      price: offer.querySelector('.olpOfferPrice').innerText,
-                      shipping: offer.querySelector('.olpShippingInfo').href,
-                  })
-              );
-          const offers = await page.$$eval('#olpOfferList .olpOffer', pageFunction);
-
-          return offers.map(offer =>
-              Object.extend({
-                  description: payload.description,
-                  title: payload.title,
-                  itemUrl: payload.itemUrl,
-                  keyword: payload.keyword,
-              }, offer)
-          );
-    }
-
-    const writeOut = async (offers) => {
-      for (const offer of offers) {
-          await Apify.pushData(offer);
-      }
+        // This is how Java guys make sure log massages are coherent.
+        console.log('Crawler finished.');
     }
 });
